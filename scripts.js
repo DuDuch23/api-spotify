@@ -14,14 +14,20 @@ async function main() {
         console.log("token existe :", accessToken);
         const profile = await getUserProfile(accessToken);
         if (profile) {
+            const artists = await GetFollowedArtists(accessToken);
             populateUI(profile);
-            return;
+            if(artists){
+                GetFollowedArtists(accessToken);
+                ShowArtists(artists);
+                return;
+            }
         }
     }
 
     if (refreshToken) {
         console.log("Refresh token existe :", refreshToken);
         const newAccessToken = await refreshAccessToken();
+        localStorage.removeItem("access_token");
         if (newAccessToken) {
             const profile = await getUserProfile(newAccessToken);
             populateUI(profile);
@@ -53,7 +59,7 @@ async function redirectToAuthCodeFlow(clientId) {
     params.append("client_id", clientId);
     params.append("response_type", "code");
     params.append("redirect_uri", redirectUri);
-    params.append("scope", "user-read-private user-read-email");
+    params.append("scope", "user-follow-read user-read-private user-read-email");
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
 
@@ -138,16 +144,23 @@ async function refreshAccessToken() {
         }
     
         const data = await response.json();
-        console.log("Token response:", data);
-    
+        localStorage.setItem("access_token", data.access_token);
+        if (data.refresh_token) {
+            localStorage.setItem("refresh_token", data.refresh_token);
+        }
+        return data.access_token;
     } catch (error) {
         console.error("Error during fetch:", error);
+        return null;
     }
 }
 
 async function getUserProfile(accessToken) {
     const result = await fetch("https://api.spotify.com/v1/me", {
-        method: "GET", headers: { Authorization: `Bearer ${accessToken}` }
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+        },
     });
 
     if (result.status === 401) {
@@ -184,7 +197,9 @@ function populateUI(profile) {
     }
     else{
         console.log("pas image");
-        
+        const imgDefault = new Image();
+        imgDefault.src = "cover2.png";
+        console.log(imgDefault);
     }
     document.getElementById("id").innerText = profile.id;
     document.getElementById("email").innerText = profile.email;
@@ -192,6 +207,49 @@ function populateUI(profile) {
     document.getElementById("uri").setAttribute("href", profile.external_urls.spotify);
     document.getElementById("url").innerText = profile.href;
     document.getElementById("url").setAttribute("href", profile.href);
+}
+
+// Récupération des artistes suivis
+async function GetFollowedArtists(accessToken) {
+    try {
+        const response = await fetch("https://api.spotify.com/v1/me/following?type=artist", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            console.error("Erreur lors de la récupération des artistes suivis :", response.status, response.statusText);
+            return null;
+        }
+
+        const data = await response.json();
+        console.log(data);
+        return data;
+    } catch (error) {
+        console.error("Erreur lors de la requête :", error);
+    }
+}
+
+// Affichage des artistes suivis
+async function ShowArtists(artists) {
+    const artistList = document.getElementById("artistList");
+    artistList.innerHTML = "";
+
+    artists.forEach((artist) => {
+        const li = document.createElement("li");
+
+        const img = new Image(100, 100);
+        img.src = artist.images[0]?.url || "default-image.jpg";
+        li.appendChild(img);
+
+        const name = document.createElement("span");
+        name.textContent = artist.name;
+        li.appendChild(name);
+
+        artistList.appendChild(li);
+    });
 }
 
 main();
