@@ -34,6 +34,13 @@ button:hover {
     text-align: center;
 }
 
+#content-pdp img{
+    width: 230px;
+    height: 230px;
+    border-radius: 100%;
+    object-fit: cover;
+}
+
 .card {
     background-color: #181818;
     border-radius: 8px;

@@ -1,51 +1,58 @@
 const clientId = "f110319b3225469a93a5e12174ffae66";
 const params = new URLSearchParams(window.location.search);
-const code = params.get("code");
 const clientSecret = "dacb3e928ca2449187d9e1474af0390a";
 const redirectUri = "http://localhost:5500";
+const code = params.get("code");
 
 async function main() {
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
+    let accessToken = localStorage.getItem("access_token");
 
-    if (accessToken) {
-        console.log("token existe :", accessToken);
-        const profile = await getUserProfile(accessToken);
-        if (profile) {
-            const artists = await GetFollowedArtists(accessToken);
-            populateUI(profile);
-            if(artists){
-                GetFollowedArtists(accessToken);
-                ShowArtists(artists);
-                return;
-            }
-        }
-    }
+    if (!accessToken && !code) {
+        redirectToAuthCodeFlow(clientId);
+        return;
+    } 
 
-    if (refreshToken) {
-        console.log("Refresh token existe :", refreshToken);
-        const newAccessToken = await refreshAccessToken();
-        localStorage.removeItem("access_token");
-        if (newAccessToken) {
-            const profile = await getUserProfile(newAccessToken);
-            populateUI(profile);
+    if (!accessToken && code) {
+        accessToken = await fetchAccessToken(clientId, code);
+        if (accessToken) {
+            localStorage.setItem("access_token", accessToken);
+        } else {
+            console.error("Impossible de récupérer un token.");
             return;
         }
     }
 
-    if (code) {
-        console.log("code :", code);
-        const newAccessToken = await fetchAccessToken(clientId, code);
-        if (newAccessToken) {
-            const profile = await getUserProfile(newAccessToken);
-            populateUI(profile);
-            window.history.replaceState({}, document.title, redirectUri);
+    if (accessToken) {
+        try {
+            const profile = await getUserProfile(accessToken);
+            if (profile) {
+                const artists = await GetFollowedArtists(accessToken);
+                populateUI(profile);
+                if (artists) {
+                    ShowArtists(artists);
+                }
+            }
+        } catch (error) {
+            console.error("Erreur lors de la récupération des données :", error);
         }
-    } else {
-        console.log("Redirigé");
-        redirectToAuthCodeFlow(clientId);
+    }
+}
+
+
+async function ShowAll() {
+    const profile = await getUserProfile(accessToken);
+    if (profile) {
+        const artists = await GetFollowedArtists(accessToken);
+        populateUI(profile);
+        if(artists){
+            const playlists = await GetPlaylists(accessToken);
+            GetFollowedArtists(accessToken);
+            ShowArtists(artists);
+            if(playlists){
+                GetPlaylists(accessToken)
+                return;
+            }
+        }
     }
 }
 
@@ -98,7 +105,9 @@ async function fetchAccessToken(clientId, code) {
     try {
         const result = await fetch("https://accounts.spotify.com/api/token", {
             method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
             body: params.toString(),
         });
 
@@ -107,9 +116,7 @@ async function fetchAccessToken(clientId, code) {
             return null;
         }
 
-        const { access_token, refresh_token } = await result.json();
-        localStorage.setItem("access_token", access_token);
-        localStorage.setItem("refresh_token", refresh_token);
+        const { access_token } = await result.json();
         return access_token;
     } catch (error) {
         console.error("Error during fetchAccessToken:", error);
@@ -190,16 +197,16 @@ function populateUI(profile) {
 
     document.getElementById("displayName").innerText = profile.display_name;
     const profileImage = new Image(200, 200);
-    if (profile.images?.[0]) {
+    if (profile.images[0]) {
         profileImage.src = profile.images[0].url;
-        document.getElementById("avatar").appendChild(profileImage);
-        document.getElementById("imgUrl").innerText = profile.images[0].url;
+        document.getElementById("content-pdp").appendChild(profileImage);
     }
     else{
         console.log("pas image");
-        const imgDefault = new Image();
-        imgDefault.src = "cover2.png";
-        console.log(imgDefault);
+        imgDefault = "cover2.png";
+        document.getElementById("content-pdp").innerHTML = `
+            <img src="${imgDefault}">
+        `;
     }
     document.getElementById("id").innerText = profile.id;
     document.getElementById("email").innerText = profile.email;
@@ -233,15 +240,22 @@ async function GetFollowedArtists(accessToken) {
 }
 
 // Affichage des artistes suivis
-async function ShowArtists(artists) {
+async function ShowArtists(data) {
     const artistList = document.getElementById("artistList");
     artistList.innerHTML = "";
+
+    const artists = data.artists?.items;
+    if (!artists || artists.length === 0) {
+        artistList.innerHTML = "<p>Aucun artiste suivi trouvé.</p>";
+        return;
+    }
 
     artists.forEach((artist) => {
         const li = document.createElement("li");
 
         const img = new Image(100, 100);
-        img.src = artist.images[0]?.url || "default-image.jpg";
+        img.src = artist.images[0]?.url || "default-image.jpg"; 
+        img.alt = artist.name;
         li.appendChild(img);
 
         const name = document.createElement("span");
@@ -251,5 +265,42 @@ async function ShowArtists(artists) {
         artistList.appendChild(li);
     });
 }
+
+async function displayArtists(accessToken) {
+    const data = await GetFollowedArtists(accessToken);
+
+    if (data) {
+        await ShowArtists(data);
+    } else {
+        console.error("Impossible de récupérer les artistes suivis.");
+    }
+}
+
+// Récupération des playlists
+// async function GetPlaylists(accessToken) {
+//     try {
+//         const response = await fetch("https://api.spotify.com/v1/playlists/{playlist_id}/followers", {
+//             method: "GET",
+//             headers: {
+//                 Authorization: `Bearer ${accessToken}`,
+//                 "Content-Type": "application/json",
+//             },
+//             data: {
+//                 public: false,
+//             }
+//         });
+
+//         if (!response.ok) {
+//             console.error("Erreur lors de la récupération des artistes suivis :", response.status, response.statusText);
+//             return null;
+//         }
+
+//         const data = await response.json();
+//         console.log(data);
+//         return data;
+//     } catch (error) {
+//         console.error("Erreur lors de la requête :", error);
+//     }
+// }
 
 main();
