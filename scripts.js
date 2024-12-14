@@ -1,6 +1,6 @@
-const clientId = "f110319b3225469a93a5e12174ffae66";
+const clientId = "Changer avec son client id";
 const params = new URLSearchParams(window.location.search);
-const clientSecret = "dacb3e928ca2449187d9e1474af0390a";
+const clientSecret = "Changer avec son client secret";
 const redirectUri = "http://localhost:5500";
 const code = params.get("code");
 
@@ -252,17 +252,21 @@ async function ShowArtists(data) {
 
     artists.forEach((artist) => {
         const li = document.createElement("li");
+        const a = document.createElement("a");
+        const contentArtist = artistList.appendChild(li);
+        const urlArtist = contentArtist.appendChild(a);
 
         const img = new Image(100, 100);
         img.src = artist.images[0]?.url || "default-image.jpg"; 
         img.alt = artist.name;
-        li.appendChild(img);
+        urlArtist.appendChild(img);
 
         const name = document.createElement("span");
         name.textContent = artist.name;
-        li.appendChild(name);
+        urlArtist.appendChild(name);
 
-        artistList.appendChild(li);
+        urlArtist.href = artist.external_urls.spotify;
+        urlArtist.target = "_blank";
     });
 }
 
@@ -276,31 +280,26 @@ async function displayArtists(accessToken) {
     }
 }
 
-// Récupération des playlists
-// async function GetPlaylists(accessToken) {
-//     try {
-//         const response = await fetch("https://api.spotify.com/v1/playlists/{playlist_id}/followers", {
-//             method: "GET",
-//             headers: {
-//                 Authorization: `Bearer ${accessToken}`,
-//                 "Content-Type": "application/json",
-//             },
-//             data: {
-//                 public: false,
-//             }
-//         });
+async function searchAlbum(accessToken) {
+    try {
+        const response = await fetch("https://api.spotify.com/v1/search?type=album", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
 
-//         if (!response.ok) {
-//             console.error("Erreur lors de la récupération des artistes suivis :", response.status, response.statusText);
-//             return null;
-//         }
+        if (!response.ok) {
+            console.error("Erreur lors de la recherche :", response.status, response.statusText);
+            return null;
+        }
 
-//         const data = await response.json();
-//         console.log(data);
-//         return data;
-//     } catch (error) {
-//         console.error("Erreur lors de la requête :", error);
-//     }
-// }
+        const data = await response.json();
+        console.log(data);
+        return data;
+    } catch (error) {
+        console.error("Erreur lors de la requête :", error);
+    }
+}
 
 main();

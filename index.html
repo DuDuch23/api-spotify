@@ -22,12 +22,19 @@
                 <li>Link: <a id="url" href="#" target="_blank"><!-- Le  sera affiché ici --></a></li>
             </ul>
         </section>
-        <section id="followed-artists">
-            <h2>Artistes que vous suivez</h2>
-            <ul id="artistList" class="artist-list">
-                <!-- Les artistes seront ajoutés ici -->
-            </ul>
-        </section>
+        <div style="display: flex; ">
+            <section id="followed-artists">
+                <h2>Artistes que vous suivez</h2>
+                <ul id="artistList" class="artist-list">
+                    <!-- Les artistes seront ajoutés ici -->
+                </ul>
+            </section>
+            <section id="search">
+                <input type="text" id="albumInput" placeholder="Rechercher un album" />
+                <button id="searchButton">Rechercher</button>
+                <div id="results"></div>
+            </section>
+        </div>
     </main>
     <footer>
         <p>Powered by Spotify API</p>
